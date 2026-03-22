@@ -446,10 +446,10 @@ def test_run(
         "commands": result.commands,
         "artifacts_dir": str(artifacts_dir),
         "stream": stream,
-        "stdout_tail": result.stdout_tail,
-        "stderr_tail": result.stderr_tail,
     }
     if not result.ok:
+        result_data["stdout_tail"] = result.stdout_tail
+        result_data["stderr_tail"] = result.stderr_tail
         summary_path = write_run_summary(
             artifacts_dir,
             selected,

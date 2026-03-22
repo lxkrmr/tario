@@ -52,7 +52,10 @@ def compose_base_args(profile: Profile) -> list[str]:
     return args
 
 
-def tail_lines(value: str | None, *, count: int = 80) -> list[str]:
+TAIL_LINE_COUNT = 20
+
+
+def tail_lines(value: str | None, *, count: int = TAIL_LINE_COUNT) -> list[str]:
     if not value:
         return []
     lines = value.splitlines()
