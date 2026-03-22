@@ -96,6 +96,8 @@ Configuration is the single source of truth.
 Test artifacts are written outside target repositories under:
 - `~/.config/tario/artifacts/<profile>/`
 
+`tario` writes JSON artifacts only (for example `last-run-summary.json`).
+
 ## Validation checks
 
 ```bash

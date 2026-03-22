@@ -380,7 +380,7 @@ def test_run(
     artifacts_dir = default_artifacts_dir() / selected.name
 
     try:
-        result = run_tests(selected, request, artifacts_dir=artifacts_dir)
+        result = run_tests(selected, request)
     except RuntimeError as exc:
         fail(
             ctx,
@@ -394,7 +394,6 @@ def test_run(
         "profile": asdict(selected),
         "exit_code": result.exit_code,
         "commands": result.commands,
-        "junitxml_path": result.junitxml_path,
         "artifacts_dir": str(artifacts_dir),
     }
     if not result.ok:
