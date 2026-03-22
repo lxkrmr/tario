@@ -105,3 +105,7 @@ def escape(value: str) -> str:
 def default_config_path() -> Path:
     home = Path.home()
     return home / ".config" / "tario" / "tario.toml"
+
+
+def default_artifacts_dir() -> Path:
+    return default_config_path().parent / "artifacts"

@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 
-from .config import Profile, TarioConfig, default_config_path
+from .config import (
+    Profile,
+    TarioConfig,
+    default_artifacts_dir,
+    default_config_path,
+)
 from .output import OutputFormat, OutputManager, error, success
 from .runner import RunRequest, ensure_docker_available, run_tests, validate_profile_files
 from .schema import COMMAND_GROUPS, describe_subject
@@ -17,6 +24,7 @@ PROFILE_ADD_EXAMPLE = (
     "--compose-file docker-compose.test.yml "
     "--service odoo"
 )
+GLOBAL_OUTPUT_GUIDE = "Use global output option: tario --output json <command>"
 
 app = typer.Typer(
     help=(
@@ -62,7 +70,7 @@ def load_config_or_fail(ctx: typer.Context) -> TarioConfig:
             ctx,
             code="CONFIG_NOT_FOUND",
             message=f"Config file not found at {default_config_path()}.",
-            next_commands=[PROFILE_ADD_EXAMPLE],
+            next_commands=[GLOBAL_OUTPUT_GUIDE, PROFILE_ADD_EXAMPLE],
             exit_code=2,
         )
     except Exception as exc:  # pragma: no cover - defensive branch
@@ -82,10 +90,33 @@ def resolve_profile_or_fail(ctx: typer.Context, profile: str | None) -> Profile:
                 "requested_profile": profile,
                 "active_profile": config.active_profile,
             },
-            next_commands=["tario profile list", PROFILE_ADD_EXAMPLE],
+            next_commands=[
+                GLOBAL_OUTPUT_GUIDE,
+                "tario profile list",
+                PROFILE_ADD_EXAMPLE,
+            ],
             exit_code=3,
         )
     return selected
+
+
+def write_run_summary(
+    artifacts_dir: Path,
+    profile: Profile,
+    result_data: dict[str, Any],
+    *,
+    code: str,
+    ok: bool,
+) -> str:
+    summary = {
+        "ok": ok,
+        "code": code,
+        "profile": asdict(profile),
+        "result": result_data,
+    }
+    summary_path = artifacts_dir / "last-run-summary.json"
+    summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+    return str(summary_path)
 
 
 OutputOption = Annotated[
@@ -116,9 +147,14 @@ def about(ctx: typer.Context) -> None:
                     "start_with": "tario doctor",
                     "discover_commands_with": "tario commands",
                     "inspect_contracts_with": "tario describe test-run",
+                    "global_output_option": "tario --output json <command>",
                 },
             },
-            next_commands=["tario commands", "tario doctor"],
+            next_commands=[
+                "tario commands",
+                "tario --output json commands",
+                "tario doctor",
+            ],
         ),
     )
 
@@ -130,7 +166,11 @@ def commands(ctx: typer.Context) -> None:
         success(
             message="Available tario command groups.",
             data={"groups": COMMAND_GROUPS},
-            next_commands=["tario describe test-run", "tario doctor"],
+            next_commands=[
+                "tario describe test-run",
+                "tario --output json describe test-run",
+                "tario doctor",
+            ],
         ),
     )
 
@@ -173,6 +213,7 @@ def doctor(
             data={
                 "profile": asdict(selected),
                 "config_path": str(default_config_path()),
+                "artifacts_dir": str(default_artifacts_dir() / selected.name),
             },
             next_commands=[f"tario test run --profile {selected.name}"],
         ),
@@ -336,8 +377,10 @@ def test_run(
         pytest_args=pytest_args,
     )
 
+    artifacts_dir = default_artifacts_dir() / selected.name
+
     try:
-        result = run_tests(selected, request)
+        result = run_tests(selected, request, artifacts_dir=artifacts_dir)
     except RuntimeError as exc:
         fail(
             ctx,
@@ -352,17 +395,36 @@ def test_run(
         "exit_code": result.exit_code,
         "commands": result.commands,
         "junitxml_path": result.junitxml_path,
+        "artifacts_dir": str(artifacts_dir),
     }
     if not result.ok:
+        summary_path = write_run_summary(
+            artifacts_dir,
+            selected,
+            result_data,
+            code="TESTS_FAILED",
+            ok=False,
+        )
+        result_data["summary_json_path"] = summary_path
         fail(
             ctx,
             code="TESTS_FAILED",
             message="Test run finished with failures.",
             data=result_data,
-            next_commands=["tario test run --output text"],
+            next_commands=[
+                "tario --output text test run --profile " + selected.name,
+            ],
             exit_code=1,
         )
 
+    summary_path = write_run_summary(
+        artifacts_dir,
+        selected,
+        result_data,
+        code="TESTS_PASSED",
+        ok=True,
+    )
+    result_data["summary_json_path"] = summary_path
     emit(
         ctx,
         success(

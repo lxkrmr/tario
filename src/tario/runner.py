@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -57,8 +58,18 @@ def run_checked(command: Sequence[str], *, cwd: str) -> None:
         raise RuntimeError(f"Command failed with exit code {process.returncode}: {joined}")
 
 
-def run_tests(profile: Profile, request: RunRequest) -> RunResult:
+def build_artifact_name(profile_name: str) -> str:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return f"{profile_name}-{stamp}-junit.xml"
+
+
+def run_tests(profile: Profile, request: RunRequest, artifacts_dir: Path) -> RunResult:
     validate_profile_files(profile)
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    host_junitxml = artifacts_dir / build_artifact_name(profile.name)
+    container_junitxml = f"/tario-artifacts/{host_junitxml.name}"
+
     base = compose_base_args(profile)
     commands: list[list[str]] = []
 
@@ -74,7 +85,7 @@ def run_tests(profile: Profile, request: RunRequest) -> RunResult:
     commands.append(up_cmd)
     run_checked(up_cmd, cwd=profile.repo_path)
 
-    pytest_parts = []
+    pytest_parts = [f"--junitxml={container_junitxml}"]
     if request.keyword:
         pytest_parts.extend(["-k", request.keyword])
     pytest_parts.extend(request.pytest_args)
@@ -83,6 +94,8 @@ def run_tests(profile: Profile, request: RunRequest) -> RunResult:
         *base,
         "run",
         "--rm",
+        "--volume",
+        f"{artifacts_dir}:/tario-artifacts",
         "--env",
         f"PYTEST_ARGS={' '.join(pytest_parts)}",
         "--env",
@@ -97,10 +110,9 @@ def run_tests(profile: Profile, request: RunRequest) -> RunResult:
     commands.append(run_cmd)
     run_process = subprocess.run(run_cmd, cwd=profile.repo_path, check=False)
 
-    junitxml_path = str(Path(profile.repo_path) / "test-report.xml")
     return RunResult(
         ok=run_process.returncode == 0,
         exit_code=run_process.returncode,
         commands=commands,
-        junitxml_path=junitxml_path,
+        junitxml_path=str(host_junitxml),
     )

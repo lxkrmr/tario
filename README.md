@@ -72,9 +72,9 @@ tario test run ...
 
 ## Output contract
 
-`tario` supports:
-- `--output json` (default)
-- `--output text`
+`tario` supports a global output option:
+- `tario --output json <command>` (default)
+- `tario --output text <command>`
 
 Stable JSON envelope:
 - `ok`
@@ -92,6 +92,9 @@ Stable JSON envelope:
 
 Configuration is the single source of truth.
 `tario` does not depend on environment-variable fallback behavior.
+
+Test artifacts are written outside target repositories under:
+- `~/.config/tario/artifacts/<profile>/`
 
 ## Validation checks
 

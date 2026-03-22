@@ -2,32 +2,39 @@ from __future__ import annotations
 
 from typing import Any
 
+GLOBAL_OPTIONS = [
+    {
+        "name": "--output",
+        "type": "json|text",
+        "required": False,
+        "scope": "global",
+        "usage": "tario --output json <command>",
+    }
+]
+
 COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
     "about": {
         "summary": "Describe tario purpose and interaction model.",
         "arguments": [],
-        "options": [{"name": "--output", "type": "json|text", "required": False}],
+        "options": [],
         "examples": ["tario about", "tario --output json about"],
     },
     "commands": {
         "summary": "List command groups.",
         "arguments": [],
-        "options": [{"name": "--output", "type": "json|text", "required": False}],
+        "options": [],
         "examples": ["tario commands", "tario --output json commands"],
     },
     "describe": {
         "summary": "Describe one command contract.",
         "arguments": [{"name": "subject", "type": "string", "required": False}],
-        "options": [{"name": "--output", "type": "json|text", "required": False}],
-        "examples": ["tario describe", "tario describe test-run"],
+        "options": [],
+        "examples": ["tario describe", "tario --output json describe test-run"],
     },
     "doctor": {
         "summary": "Validate local config and Docker Compose prerequisites.",
         "arguments": [],
-        "options": [
-            {"name": "--profile", "type": "string", "required": False},
-            {"name": "--output", "type": "json|text", "required": False},
-        ],
+        "options": [{"name": "--profile", "type": "string", "required": False}],
         "examples": ["tario doctor", "tario --output json doctor --profile default"],
     },
     "profile-add": {
@@ -37,7 +44,6 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
             {"name": "--repo-path", "type": "string", "required": True},
             {"name": "--compose-file", "type": "string[]", "required": True},
             {"name": "--service", "type": "string", "required": False},
-            {"name": "--output", "type": "json|text", "required": False},
         ],
         "examples": [
             (
@@ -50,22 +56,19 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
     "profile-list": {
         "summary": "List available profiles.",
         "arguments": [],
-        "options": [{"name": "--output", "type": "json|text", "required": False}],
+        "options": [],
         "examples": ["tario profile list"],
     },
     "profile-show": {
         "summary": "Show one profile or the active profile.",
         "arguments": [],
-        "options": [
-            {"name": "--profile", "type": "string", "required": False},
-            {"name": "--output", "type": "json|text", "required": False},
-        ],
+        "options": [{"name": "--profile", "type": "string", "required": False}],
         "examples": ["tario profile show", "tario profile show --profile default"],
     },
     "profile-use": {
         "summary": "Set active profile.",
         "arguments": [{"name": "name", "type": "string", "required": True}],
-        "options": [{"name": "--output", "type": "json|text", "required": False}],
+        "options": [],
         "examples": ["tario profile use default"],
     },
     "test-run": {
@@ -79,15 +82,14 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
             {"name": "--update", "type": "string", "required": False},
             {"name": "--keyword", "type": "string", "required": False},
             {"name": "--pytest-arg", "type": "string[]", "required": False},
-            {"name": "--output", "type": "json|text", "required": False},
         ],
         "examples": [
             "tario test run --profile default",
             "tario test run --profile default --integration --keyword foo",
+            "tario --output json test run --profile default",
         ],
     },
 }
-
 
 COMMAND_GROUPS = [
     {"name": "introspection", "commands": ["about", "commands", "describe"]},
@@ -105,6 +107,7 @@ def describe_subject(subject: str | None = None) -> dict[str, Any]:
         return {
             "subject": "commands",
             "summary": "Available command contracts.",
+            "global_options": GLOBAL_OPTIONS,
             "commands": sorted(COMMAND_SCHEMAS),
         }
 
@@ -115,5 +118,6 @@ def describe_subject(subject: str | None = None) -> dict[str, Any]:
 
     return {
         "subject": normalized,
+        "global_options": GLOBAL_OPTIONS,
         **COMMAND_SCHEMAS[normalized],
     }
