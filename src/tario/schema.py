@@ -71,6 +71,18 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
         "options": [],
         "examples": ["tario profile use default"],
     },
+    "env-down": {
+        "summary": "Run docker compose down for the selected profile.",
+        "arguments": [],
+        "options": [
+            {"name": "--profile", "type": "string", "required": False},
+            {"name": "--volumes", "type": "flag", "required": False},
+        ],
+        "examples": [
+            "tario env down --profile default",
+            "tario env down --profile default --volumes",
+        ],
+    },
     "test-run": {
         "summary": "Run tests through Docker Compose from the selected profile.",
         "arguments": [],
@@ -82,6 +94,7 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
             {"name": "--update", "type": "string", "required": False},
             {"name": "--keyword", "type": "string", "required": False},
             {"name": "--pytest-arg", "type": "string[]", "required": False},
+            {"name": "--stream", "type": "flag", "required": False},
         ],
         "examples": [
             "tario test run --profile default",
@@ -98,6 +111,7 @@ COMMAND_GROUPS = [
         "name": "profiles",
         "commands": ["profile add", "profile list", "profile show", "profile use"],
     },
+    {"name": "environment", "commands": ["env down"]},
     {"name": "testing", "commands": ["test run"]},
 ]
 

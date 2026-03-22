@@ -17,6 +17,7 @@ class RunRequest:
     update: str | None
     keyword: str | None
     pytest_args: list[str]
+    stream: bool
 
 
 @dataclass(slots=True)
@@ -24,6 +25,8 @@ class RunResult:
     ok: bool
     exit_code: int
     commands: list[list[str]]
+    stdout_tail: list[str]
+    stderr_tail: list[str]
 
 
 def ensure_docker_available() -> None:
@@ -49,11 +52,31 @@ def compose_base_args(profile: Profile) -> list[str]:
     return args
 
 
+def tail_lines(value: str | None, *, count: int = 80) -> list[str]:
+    if not value:
+        return []
+    lines = value.splitlines()
+    return lines[-count:]
+
+
 def run_checked(command: Sequence[str], *, cwd: str) -> None:
-    process = subprocess.run(command, cwd=cwd, check=False)
+    process = subprocess.run(command, cwd=cwd, check=False, capture_output=True, text=True)
     if process.returncode != 0:
         joined = " ".join(command)
-        raise RuntimeError(f"Command failed with exit code {process.returncode}: {joined}")
+        tail = tail_lines(process.stderr) or tail_lines(process.stdout)
+        detail = "\n".join(tail)
+        raise RuntimeError(
+            f"Command failed with exit code {process.returncode}: {joined}\n{detail}"
+        )
+
+
+def down_environment(profile: Profile, *, volumes: bool) -> list[str]:
+    validate_profile_files(profile)
+    down_cmd = [*compose_base_args(profile), "down"]
+    if volumes:
+        down_cmd.append("--volumes")
+    run_checked(down_cmd, cwd=profile.repo_path)
+    return down_cmd
 
 
 def run_tests(profile: Profile, request: RunRequest) -> RunResult:
@@ -94,10 +117,25 @@ def run_tests(profile: Profile, request: RunRequest) -> RunResult:
     run_cmd.append(profile.service)
 
     commands.append(run_cmd)
-    run_process = subprocess.run(run_cmd, cwd=profile.repo_path, check=False)
+    run_process = subprocess.run(
+        run_cmd,
+        cwd=profile.repo_path,
+        check=False,
+        capture_output=not request.stream,
+        text=True,
+    )
+
+    if request.stream:
+        stdout_tail: list[str] = []
+        stderr_tail: list[str] = []
+    else:
+        stdout_tail = tail_lines(run_process.stdout)
+        stderr_tail = tail_lines(run_process.stderr)
 
     return RunResult(
         ok=run_process.returncode == 0,
         exit_code=run_process.returncode,
         commands=commands,
+        stdout_tail=stdout_tail,
+        stderr_tail=stderr_tail,
     )

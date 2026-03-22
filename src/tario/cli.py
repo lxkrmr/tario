@@ -14,7 +14,13 @@ from .config import (
     default_config_path,
 )
 from .output import OutputFormat, OutputManager, error, success
-from .runner import RunRequest, ensure_docker_available, run_tests, validate_profile_files
+from .runner import (
+    RunRequest,
+    down_environment,
+    ensure_docker_available,
+    run_tests,
+    validate_profile_files,
+)
 from .schema import COMMAND_GROUPS, describe_subject
 
 PROFILE_ADD_EXAMPLE = (
@@ -35,8 +41,10 @@ app = typer.Typer(
 )
 profile_app = typer.Typer(help="Manage tario profiles.", no_args_is_help=True)
 test_app = typer.Typer(help="Run tests through Docker Compose.", no_args_is_help=True)
+env_app = typer.Typer(help="Manage test environment lifecycle.", no_args_is_help=True)
 app.add_typer(profile_app, name="profile")
 app.add_typer(test_app, name="test")
+app.add_typer(env_app, name="env")
 
 
 class AppState:
@@ -114,6 +122,7 @@ def write_run_summary(
         "profile": asdict(profile),
         "result": result_data,
     }
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
     summary_path = artifacts_dir / "last-run-summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
     return str(summary_path)
@@ -214,6 +223,42 @@ def doctor(
                 "profile": asdict(selected),
                 "config_path": str(default_config_path()),
                 "artifacts_dir": str(default_artifacts_dir() / selected.name),
+            },
+            next_commands=[f"tario test run --profile {selected.name}"],
+        ),
+    )
+
+
+@env_app.command("down")
+def env_down(
+    ctx: typer.Context,
+    profile: Annotated[str | None, typer.Option("--profile", help="Profile override.")] = None,
+    volumes: Annotated[
+        bool,
+        typer.Option("--volumes", help="Also remove named volumes."),
+    ] = False,
+) -> None:
+    selected = resolve_profile_or_fail(ctx, profile)
+    try:
+        command = down_environment(selected, volumes=volumes)
+    except RuntimeError as exc:
+        fail(
+            ctx,
+            code="COMPOSE_FAILED",
+            message=str(exc),
+            data={"profile": asdict(selected)},
+            exit_code=6,
+        )
+
+    emit(
+        ctx,
+        success(
+            code="ENV_DOWN",
+            message=f"Environment for profile {selected.name!r} is down.",
+            data={
+                "profile": asdict(selected),
+                "volumes": volumes,
+                "command": command,
             },
             next_commands=[f"tario test run --profile {selected.name}"],
         ),
@@ -366,6 +411,10 @@ def test_run(
         list[str],
         typer.Option("--pytest-arg", help="Extra pytest argument (repeatable)."),
     ] = [],
+    stream: Annotated[
+        bool,
+        typer.Option("--stream", help="Stream Compose output live to terminal."),
+    ] = False,
 ) -> None:
     selected = resolve_profile_or_fail(ctx, profile)
     request = RunRequest(
@@ -375,6 +424,7 @@ def test_run(
         update=update,
         keyword=keyword,
         pytest_args=pytest_args,
+        stream=stream,
     )
 
     artifacts_dir = default_artifacts_dir() / selected.name
@@ -395,6 +445,9 @@ def test_run(
         "exit_code": result.exit_code,
         "commands": result.commands,
         "artifacts_dir": str(artifacts_dir),
+        "stream": stream,
+        "stdout_tail": result.stdout_tail,
+        "stderr_tail": result.stderr_tail,
     }
     if not result.ok:
         summary_path = write_run_summary(

@@ -56,6 +56,12 @@ tario test run --profile default
 tario test run --profile default --keyword "foo and not slow"
 ```
 
+Use `--stream` if you want live Compose/Odoo output:
+
+```bash
+tario test run --profile default --stream
+```
+
 ## Core commands
 
 ```bash
@@ -67,6 +73,7 @@ tario profile list
 tario profile show
 tario profile add ...
 tario profile use ...
+tario env down [--volumes] ...
 tario test run ...
 ```
 
