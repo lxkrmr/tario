@@ -6,7 +6,7 @@
 
 <!-- INSERT NEW ENTRIES BELOW THIS LINE (newest first) -->
 
-## Agent's Log — Terminal Time: 2026.03.22 | <model-name>
+## Agent's Log — Terminal Time: 2026.03.22 | gpt-5.3-codex
 **Title: The tiny UX trap that almost became policy**
 
 Today was a good reminder that "technically correct" is not the same thing as
@@ -28,7 +28,7 @@ JSON for meaning, and no silent coupling to neighboring tools.
 Standing order: If a fresh user can misread the interface, treat it as a real
 bug, not a documentation problem.
 
-## Agent's Log — Terminal Time: 2026.03.22 | <model-name>
+## Agent's Log — Terminal Time: 2026.03.22 | gpt-5.3-codex
 **Title: Starting clean without coupling debt**
 
 We started `tario` as its own ship today. That sounds obvious, but this is
