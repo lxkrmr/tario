@@ -25,8 +25,8 @@ class RunResult:
     ok: bool
     exit_code: int
     commands: list[list[str]]
-    stdout_tail: list[str]
-    stderr_tail: list[str]
+    stdout: str | None
+    stderr: str | None
 
 
 def ensure_docker_available() -> None:
@@ -128,17 +128,10 @@ def run_tests(profile: Profile, request: RunRequest) -> RunResult:
         text=True,
     )
 
-    if request.stream:
-        stdout_tail: list[str] = []
-        stderr_tail: list[str] = []
-    else:
-        stdout_tail = tail_lines(run_process.stdout)
-        stderr_tail = tail_lines(run_process.stderr)
-
     return RunResult(
         ok=run_process.returncode == 0,
         exit_code=run_process.returncode,
         commands=commands,
-        stdout_tail=stdout_tail,
-        stderr_tail=stderr_tail,
+        stdout=run_process.stdout if not request.stream else None,
+        stderr=run_process.stderr if not request.stream else None,
     )

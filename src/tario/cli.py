@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Any
@@ -16,6 +17,7 @@ from .config import (
 from .output import OutputFormat, OutputManager, error, success
 from .runner import (
     RunRequest,
+    RunResult,
     down_environment,
     ensure_docker_available,
     run_tests,
@@ -108,24 +110,51 @@ def resolve_profile_or_fail(ctx: typer.Context, profile: str | None) -> Profile:
     return selected
 
 
-def write_run_summary(
+def write_artifacts(
     artifacts_dir: Path,
     profile: Profile,
-    result_data: dict[str, Any],
+    result: RunResult,
     *,
     code: str,
     ok: bool,
-) -> str:
+    timestamp: str,
+) -> dict[str, str]:
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    artifact_paths: dict[str, str] = {}
+
+    # stdout / stderr logs
+    if result.stdout is not None:
+        stdout_path = artifacts_dir / "stdout.log"
+        stdout_path.write_text(result.stdout, encoding="utf-8")
+        artifact_paths["stdout_log"] = str(stdout_path)
+
+    if result.stderr is not None:
+        stderr_path = artifacts_dir / "stderr.log"
+        stderr_path.write_text(result.stderr, encoding="utf-8")
+        artifact_paths["stderr_log"] = str(stderr_path)
+
+    # copy test-report.xml from repo if present
+    xml_source = Path(profile.repo_path) / "test-report.xml"
+    if xml_source.exists():
+        xml_dest = artifacts_dir / "test-report.xml"
+        shutil.copy2(xml_source, xml_dest)
+        artifact_paths["test_report_xml"] = str(xml_dest)
+
+    # slim summary
     summary = {
         "ok": ok,
         "code": code,
-        "profile": asdict(profile),
-        "result": result_data,
+        "profile": profile.name,
+        "exit_code": result.exit_code,
+        "timestamp": timestamp,
+        "artifacts": artifact_paths,
     }
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
     summary_path = artifacts_dir / "last-run-summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
-    return str(summary_path)
+    artifact_paths["summary_json"] = str(summary_path)
+
+    return artifact_paths
 
 
 OutputOption = Annotated[
@@ -427,7 +456,10 @@ def test_run(
         stream=stream,
     )
 
+    from datetime import datetime, timezone
+
     artifacts_dir = default_artifacts_dir() / selected.name
+    timestamp = datetime.now(timezone.utc).isoformat()
 
     try:
         result = run_tests(selected, request)
@@ -440,24 +472,24 @@ def test_run(
             exit_code=6,
         )
 
+    code = "TESTS_PASSED" if result.ok else "TESTS_FAILED"
+    artifact_paths = write_artifacts(
+        artifacts_dir,
+        selected,
+        result,
+        code=code,
+        ok=result.ok,
+        timestamp=timestamp,
+    )
+
     result_data = {
         "profile": asdict(selected),
         "exit_code": result.exit_code,
         "commands": result.commands,
-        "artifacts_dir": str(artifacts_dir),
-        "stream": stream,
+        "artifacts": artifact_paths,
     }
+
     if not result.ok:
-        result_data["stdout_tail"] = result.stdout_tail
-        result_data["stderr_tail"] = result.stderr_tail
-        summary_path = write_run_summary(
-            artifacts_dir,
-            selected,
-            result_data,
-            code="TESTS_FAILED",
-            ok=False,
-        )
-        result_data["summary_json_path"] = summary_path
         fail(
             ctx,
             code="TESTS_FAILED",
@@ -469,14 +501,6 @@ def test_run(
             exit_code=1,
         )
 
-    summary_path = write_run_summary(
-        artifacts_dir,
-        selected,
-        result_data,
-        code="TESTS_PASSED",
-        ok=True,
-    )
-    result_data["summary_json_path"] = summary_path
     emit(
         ctx,
         success(
