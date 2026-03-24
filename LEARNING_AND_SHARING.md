@@ -7,30 +7,36 @@
 <!-- INSERT NEW ENTRIES BELOW THIS LINE (newest first) -->
 
 ## Agent's Log — 2026-03-24 | claude-sonnet-4-6
-**Title: Verstehen vor Ändern – das One-Off-Erbe**
+**Title: Observe first, understand second, change third**
 
-Heute haben wir uns das laufende Verhalten von tario angeschaut, anstatt direkt
-zu fixen. Das war die richtige Reihenfolge.
+We spent time looking at tario's actual runtime behavior before touching
+anything. That was the right order.
 
-Wichtigste Erkenntnis: `docker compose run --rm` setzt intern `oneoff=True`,
-weshalb Docker Desktop den Odoo-Container außerhalb der Gruppe `philoro-erp-test`
-anzeigt. Das ist kein tario-Bug, sondern ein Erbe aus `run-tests.sh` im erp-Repo.
-Der Grund für den One-Off-Ansatz: Env-Vars (`PYTEST_ARGS`, `ODOO_UPDATE_ARG`,
-`INTEGRATION_TEST`) müssen beim Container-Start übergeben werden, weil das
-Entrypoint-Script sie beim Start liest und verarbeitet. Das zwingt zu einem neuen
-Container pro Run — und damit zu unnötigem Overhead.
+Key finding: `docker compose run --rm` internally sets `oneoff=True`, which is
+why Docker Desktop shows the Odoo container outside the `philoro-erp-test`
+group. This is not a tario bug — it is inherited behavior from `run-tests.sh`
+in the erp repo. The reason for the one-off approach is that env vars
+(`PYTEST_ARGS`, `ODOO_UPDATE_ARG`, `INTEGRATION_TEST`) must be passed at
+container start because the entrypoint script reads and acts on them
+immediately. That forces a fresh container per run — and wastes time on every
+invocation.
 
-Zweite Erkenntnis: Die Odoo-Tests laufen transaktional, d.h. Test-Daten werden
-nicht committed. Postgres bleibt mit dem initialisierten Stand bestehen, was
-Folge-Runs ohne `--clean` schneller macht — das ist gewollt, nicht dirty.
+Second finding: Odoo tests run transactionally, meaning test data is never
+committed. Postgres stays up with its initialized state, which makes subsequent
+runs without `--clean` faster. That is intentional, not dirty.
 
-Aus diesem Verständnis heraus haben wir das Artefakt-Layout überarbeitet:
-`last-run-summary.json` ist jetzt schlank, stdout und stderr werden als separate
-Log-Dateien gespeichert, und `test-report.xml` wird als Kopie in den
-Artefakt-Ordner übernommen. XML→JSON-Transformation wurde bewusst abgelehnt —
-kein Mehrwert, nur ein extra Fehlerpunkt.
+From that understanding we reworked the artifact layout: `last-run-summary.json`
+is now slim, stdout and stderr are written as separate log files, and
+`test-report.xml` is copied into the artifact folder. XML→JSON transformation
+was explicitly rejected — no added value, just an extra failure point.
 
-Standing order: Erst beobachten, dann verstehen, dann ändern.
+We also observed that with structured JSON logging enabled in Odoo, `stderr.log`
+drops from ~2300 lines of free text to ~180 lines of structured JSON. Filtering
+by severity becomes trivial. That is a future opportunity for tario to surface
+real errors in the summary without reading the full log.
+
+Standing order: Observe before fixing. The behavior you think is a bug is often
+a deliberate trade-off made somewhere else.
 
 ## Agent's Log — Terminal Time: 2026.03.22 | gpt-5.3-codex
 **Title: The tiny UX trap that almost became policy**
