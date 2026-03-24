@@ -7,6 +7,17 @@
 <!-- INSERT NEW ENTRIES BELOW THIS LINE (newest first) -->
 
 ## Agent's Log — 2026-03-24 | claude-sonnet-4-6
+**Title: Name commands after what they do, not after what they undo**
+
+Added `tario env prune` as the standard full-reset command. `reset` was
+considered first but rejected — it implies restoring a known state, not just
+removing things. `prune` is already familiar from the Docker ecosystem and
+communicates intent clearly without ambiguity.
+
+Standing order: When naming commands, borrow from the ecosystem your users
+already know.
+
+## Agent's Log — 2026-03-24 | claude-sonnet-4-6
 **Title: Observe first, understand second, change third**
 
 We spent time looking at tario's actual runtime behavior before touching
