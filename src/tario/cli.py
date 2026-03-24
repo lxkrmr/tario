@@ -20,8 +20,10 @@ from .runner import (
     RunResult,
     down_environment,
     ensure_docker_available,
+    ensure_docker_daemon_running,
     run_tests,
     validate_profile_files,
+    validate_service_exists,
 )
 from .schema import COMMAND_GROUPS, describe_subject
 
@@ -234,7 +236,9 @@ def doctor(
 
     try:
         ensure_docker_available()
+        ensure_docker_daemon_running()
         validate_profile_files(selected)
+        validate_service_exists(selected)
     except RuntimeError as exc:
         fail(
             ctx,

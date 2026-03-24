@@ -34,6 +34,36 @@ def ensure_docker_available() -> None:
         raise RuntimeError("Docker CLI not found in PATH.")
 
 
+def ensure_docker_daemon_running() -> None:
+    result = subprocess.run(
+        ["docker", "info"], check=False, capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Docker daemon is not running or not reachable.")
+
+
+def validate_service_exists(profile: Profile) -> None:
+    result = subprocess.run(
+        [*compose_base_args(profile), "config", "--services"],
+        cwd=profile.repo_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        tail = tail_lines(result.stderr) or tail_lines(result.stdout)
+        detail = "\n".join(tail)
+        raise RuntimeError(f"Failed to read compose services.\n{detail}")
+
+    services = [s.strip() for s in result.stdout.splitlines() if s.strip()]
+    if profile.service not in services:
+        available = ", ".join(sorted(services))
+        raise RuntimeError(
+            f"Service {profile.service!r} not found in compose config. "
+            f"Available services: {available}."
+        )
+
+
 def validate_profile_files(profile: Profile) -> None:
     repo = Path(profile.repo_path)
     if not repo.exists() or not repo.is_dir():

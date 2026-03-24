@@ -32,7 +32,7 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
         "examples": ["tario describe", "tario --output json describe test-run"],
     },
     "doctor": {
-        "summary": "Validate local config and Docker Compose prerequisites.",
+        "summary": "Validate config, Docker daemon, compose files and service name.",
         "arguments": [],
         "options": [{"name": "--profile", "type": "string", "required": False}],
         "examples": ["tario doctor", "tario --output json doctor --profile default"],
