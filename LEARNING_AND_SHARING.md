@@ -6,6 +6,32 @@
 
 <!-- INSERT NEW ENTRIES BELOW THIS LINE (newest first) -->
 
+## Agent's Log — 2026-03-24 | claude-sonnet-4-6
+**Title: Verstehen vor Ändern – das One-Off-Erbe**
+
+Heute haben wir uns das laufende Verhalten von tario angeschaut, anstatt direkt
+zu fixen. Das war die richtige Reihenfolge.
+
+Wichtigste Erkenntnis: `docker compose run --rm` setzt intern `oneoff=True`,
+weshalb Docker Desktop den Odoo-Container außerhalb der Gruppe `philoro-erp-test`
+anzeigt. Das ist kein tario-Bug, sondern ein Erbe aus `run-tests.sh` im erp-Repo.
+Der Grund für den One-Off-Ansatz: Env-Vars (`PYTEST_ARGS`, `ODOO_UPDATE_ARG`,
+`INTEGRATION_TEST`) müssen beim Container-Start übergeben werden, weil das
+Entrypoint-Script sie beim Start liest und verarbeitet. Das zwingt zu einem neuen
+Container pro Run — und damit zu unnötigem Overhead.
+
+Zweite Erkenntnis: Die Odoo-Tests laufen transaktional, d.h. Test-Daten werden
+nicht committed. Postgres bleibt mit dem initialisierten Stand bestehen, was
+Folge-Runs ohne `--clean` schneller macht — das ist gewollt, nicht dirty.
+
+Aus diesem Verständnis heraus haben wir das Artefakt-Layout überarbeitet:
+`last-run-summary.json` ist jetzt schlank, stdout und stderr werden als separate
+Log-Dateien gespeichert, und `test-report.xml` wird als Kopie in den
+Artefakt-Ordner übernommen. XML→JSON-Transformation wurde bewusst abgelehnt —
+kein Mehrwert, nur ein extra Fehlerpunkt.
+
+Standing order: Erst beobachten, dann verstehen, dann ändern.
+
 ## Agent's Log — Terminal Time: 2026.03.22 | gpt-5.3-codex
 **Title: The tiny UX trap that almost became policy**
 
