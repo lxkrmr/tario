@@ -72,7 +72,7 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
         "examples": ["tario profile use default"],
     },
     "env-down": {
-        "summary": "Run docker compose down for the selected profile.",
+        "summary": "Stop containers for the selected profile. Use --volumes to remove volumes too.",
         "arguments": [],
         "options": [
             {"name": "--profile", "type": "string", "required": False},
@@ -81,6 +81,17 @@ COMMAND_SCHEMAS: dict[str, dict[str, Any]] = {
         "examples": [
             "tario env down --profile default",
             "tario env down --profile default --volumes",
+        ],
+    },
+    "env-prune": {
+        "summary": "Remove containers and volumes. Standard full-reset path before a test run.",
+        "arguments": [],
+        "options": [
+            {"name": "--profile", "type": "string", "required": False},
+        ],
+        "examples": [
+            "tario env prune",
+            "tario env prune --profile default",
         ],
     },
     "test-run": {
@@ -111,7 +122,7 @@ COMMAND_GROUPS = [
         "name": "profiles",
         "commands": ["profile add", "profile list", "profile show", "profile use"],
     },
-    {"name": "environment", "commands": ["env down"]},
+    {"name": "environment", "commands": ["env down", "env prune"]},
     {"name": "testing", "commands": ["test run"]},
 ]
 

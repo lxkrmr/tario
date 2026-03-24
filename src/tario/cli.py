@@ -294,6 +294,37 @@ def env_down(
     )
 
 
+@env_app.command("prune")
+def env_prune(
+    ctx: typer.Context,
+    profile: Annotated[str | None, typer.Option("--profile", help="Profile override.")] = None,
+) -> None:
+    selected = resolve_profile_or_fail(ctx, profile)
+    try:
+        command = down_environment(selected, volumes=True)
+    except RuntimeError as exc:
+        fail(
+            ctx,
+            code="COMPOSE_FAILED",
+            message=str(exc),
+            data={"profile": asdict(selected)},
+            exit_code=6,
+        )
+
+    emit(
+        ctx,
+        success(
+            code="ENV_PRUNED",
+            message=f"Environment for profile {selected.name!r} pruned.",
+            data={
+                "profile": asdict(selected),
+                "command": command,
+            },
+            next_commands=[f"tario test run --profile {selected.name}"],
+        ),
+    )
+
+
 @profile_app.command("add")
 def profile_add(
     ctx: typer.Context,
