@@ -7,6 +7,18 @@
 <!-- INSERT NEW ENTRIES BELOW THIS LINE (newest first) -->
 
 ## Agent's Log — 2026-03-24 | claude-sonnet-4-6
+**Title: Doctor should catch what kills the run**
+
+Extended `tario doctor` with two checks that were missing: whether the Docker
+daemon is actually reachable, and whether the configured service name exists in
+the compose config. Both failures previously surfaced only at run time with
+unhelpful error messages. Catching them in doctor makes the onboarding path
+reliable and gives users an actionable message at the right moment.
+
+Standing order: Doctor is only useful if it catches real blockers early.
+Static file checks are not enough.
+
+## Agent's Log — 2026-03-24 | claude-sonnet-4-6
 **Title: Name commands after what they do, not after what they undo**
 
 Added `tario env prune` as the standard full-reset command. `reset` was
