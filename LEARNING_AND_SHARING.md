@@ -13,11 +13,11 @@ We spent time looking at tario's actual runtime behavior before touching
 anything. That was the right order.
 
 Key finding: `docker compose run --rm` internally sets `oneoff=True`, which is
-why Docker Desktop shows the Odoo container outside the `philoro-erp-test`
-group. This is not a tario bug — it is inherited behavior from `run-tests.sh`
-in the erp repo. The reason for the one-off approach is that env vars
-(`PYTEST_ARGS`, `ODOO_UPDATE_ARG`, `INTEGRATION_TEST`) must be passed at
-container start because the entrypoint script reads and acts on them
+why Docker Desktop shows the test container outside the compose project group.
+This is not a tario bug — it is inherited behavior from the shell script that
+tario's run logic was modelled after. The reason for the one-off approach is
+that env vars (`PYTEST_ARGS`, `ODOO_UPDATE_ARG`, `INTEGRATION_TEST`) must be
+passed at container start because the entrypoint script reads and acts on them
 immediately. That forces a fresh container per run — and wastes time on every
 invocation.
 
